@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 	"github.com/alchemist7991/scalable-chat-service/constant"
+	redisHelper "github.com/alchemist7991/scalable-chat-service/redisHelper"
 	"golang.org/x/net/websocket"
 )
 
@@ -27,6 +28,7 @@ func NewServer() *Server {
 }
 
 func (s *Server) HandleNewWS(ws *websocket.Conn) {
+	defer ws.Close()
 	log.Println("New connection received from ", ws.RemoteAddr())
 	s.conns[ws] = GenerateSocketId()
 	s.ReadMessage(ws)
@@ -40,6 +42,7 @@ func (s *Server) ReadMessage(ws *websocket.Conn) {
 			log.Fatalln("Unable to read message", err)
 		}
 		msg := string(buf[:n])
+		go redisHelper.StoreMessage(msg, s.conns[ws], ws.RemoteAddr().String())
 		log.Printf("%s (%s): %s",s.conns[ws], ws.RemoteAddr(), msg)
 	}
 }
@@ -51,5 +54,6 @@ func GenerateSocketId() string {
 
 func StartServer() {
 	server := NewServer()
+	redisHelper.SetClientInstance()
 	RegisterSocketHandlers(server)
 }
